@@ -1,113 +1,110 @@
 package com.example.wolfglyphbattery
 
 import android.content.Context
-import android.graphics.Bitmap
-import android.graphics.Color
-import java.lang.StringBuilder
+import android.util.Log
 
+/**
+ * Kontroler, który:
+ * 1) Sprawdza czy w AAR jest Nothingowe API (GlyphMatrixManager itp.)
+ * 2) Buduje ramkę tekstową przez builder i wysyła ją — wszystko przez reflection,
+ *    żeby działało z zaciemnionymi nazwami metod.
+ */
 object GlyphMatrixController {
+    private const val TAG = "GlyphMatrixController"
 
-    private val WOLF_25x25: Array<IntArray> = arrayOf(
-        intArrayOf(0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0),
-        intArrayOf(0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,1,0,0,0,0,0,0,0,0),
-        intArrayOf(0,0,0,0,0,0,0,0,0,0,1,0,1,0,0,1,1,0,0,0,0,0,0,0,0),
-        intArrayOf(0,0,0,0,0,0,0,0,0,0,1,0,1,1,1,0,1,0,0,0,0,0,0,0,0),
-        intArrayOf(0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,0,0,0,0,0,0,0,0,0),
-        intArrayOf(0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0),
-        intArrayOf(0,0,0,0,0,0,0,0,0,1,1,1,1,0,0,1,1,0,0,0,0,0,0,0,0),
-        intArrayOf(0,0,0,0,0,0,0,0,1,0,1,1,1,1,1,0,1,1,0,0,0,0,0,0,0),
-        intArrayOf(0,0,0,0,0,0,0,1,1,0,1,1,0,0,1,1,1,1,1,0,0,0,0,0,0),
-        intArrayOf(0,0,0,0,0,0,0,0,1,1,0,1,1,0,0,0,1,1,0,0,0,0,0,0,0),
-        intArrayOf(0,0,0,0,0,0,0,1,1,1,0,0,1,0,0,1,0,0,0,0,0,0,0,0,0),
-        intArrayOf(0,0,0,0,0,0,1,1,1,1,1,0,0,0,0,1,1,0,0,0,0,0,0,0,0),
-        intArrayOf(0,0,0,0,0,1,1,1,0,1,1,1,0,0,0,0,1,0,0,0,0,0,0,0,0),
-        intArrayOf(0,0,0,0,1,1,1,0,0,0,1,1,1,0,0,0,1,0,0,0,0,0,0,0,0),
-        intArrayOf(0,0,0,0,1,1,0,0,0,0,0,1,1,0,0,1,1,0,0,0,0,0,0,0,0),
-        intArrayOf(0,0,0,1,1,0,0,0,1,0,0,0,1,0,1,1,0,0,0,0,0,0,0,0,0),
-        intArrayOf(0,0,0,1,0,0,0,0,1,0,0,0,0,1,1,0,0,0,0,0,0,0,0,0,0),
-        intArrayOf(0,0,1,1,0,1,1,0,0,1,0,0,1,1,0,1,0,0,0,0,0,0,0,0,0),
-        intArrayOf(0,0,1,0,0,0,0,1,0,1,0,0,1,0,0,1,0,0,0,0,0,0,0,0,0),
-        intArrayOf(0,0,1,0,0,0,0,1,0,0,1,0,1,0,1,1,0,0,0,0,0,0,0,0,0),
-        intArrayOf(0,0,0,0,0,0,0,1,0,0,1,0,1,0,1,1,0,0,0,0,0,0,0,0,0),
-        intArrayOf(0,0,0,0,0,0,1,1,0,0,1,0,1,0,0,1,0,0,0,0,0,0,0,0,0),
-        intArrayOf(0,0,0,0,0,1,1,0,0,0,1,0,1,0,0,1,0,0,0,0,0,0,0,0,0),
-        intArrayOf(0,0,0,0,0,0,0,1,1,0,0,0,1,1,0,0,1,0,0,0,0,0,0,0,0),
-        intArrayOf(0,0,0,0,0,0,0,0,0,1,0,0,1,1,1,0,0,0,0,0,0,0,0,0,0)
-    )
+    // Pełne nazwy klas, które naprawdę są w Twoim AAR:
+    private const val CLASS_MANAGER = "com.nothing.ketchum.GlyphMatrixManager"
+    private const val CLASS_GLYPH_FRAME_BUILDER = "com.nothing.ketchum.GlyphFrame\$Builder"
+    private const val CLASS_GLYPH_MATRIX_FRAME = "com.nothing.ketchum.GlyphMatrixFrame"
 
-    fun frameBytes(intensityWhite: Int): ByteArray {
-        val value = intensityWhite.coerceIn(0, 255)
-        val out = ByteArray(25 * 25)
-        var i = 0
-        for (r in 0 until 25) for (c in 0 until 25) {
-            out[i++] = if (WOLF_25x25[r][c] == 1) value.toByte() else 0.toByte()
-        }
-        return out
-    }
-
-    fun previewBitmap(scale: Int = 12): Bitmap {
-        val s = if (scale < 1) 1 else scale
-        val bmp = Bitmap.createBitmap(25 * s, 25 * s, Bitmap.Config.ARGB_8888)
-        for (r in 0 until 25) for (c in 0 until 25) {
-            val color = if (WOLF_25x25[r][c] == 1) Color.WHITE else Color.BLACK
-            for (y in 0 until s) for (x in 0 until s) {
-                bmp.setPixel(c * s + x, r * s + y, color)
-            }
-        }
-        return bmp
-    }
-
-    data class SendResult(val ok: Boolean, val report: String)
-
-    fun sendToGlyphWithReport(context: Context, frame: ByteArray): SendResult {
-        val report = StringBuilder()
-        fun log(m: String) { report.append(m).append('\n') }
-
-        val candidates = listOf(
-            "com.nothing.ketchum.GlyphMatrixApi" to "sendFrame",
-            "com.nothing.ketchum.GlyphMatrix" to "sendFrame",
-            "com.nothing.api.glyph.GlyphMatrixApi" to "sendFrame"
-        )
-
-        try {
-            for ((clsName, methodName) in candidates) {
-                val cls = runCatching { Class.forName(clsName) }.getOrNull()
-                if (cls == null) { log("⛔ Klasa nie znaleziona: $clsName"); continue }
-
-                log("✅ Znaleziono klasę: $clsName")
-
-                val methodCtx = cls.methods.firstOrNull {
-                    it.name == methodName &&
-                            it.parameterTypes.size == 2 &&
-                            Context::class.java.isAssignableFrom(it.parameterTypes[0]) &&
-                            it.parameterTypes[1] == ByteArray::class.java
-                }
-                val methodPlain = cls.methods.firstOrNull {
-                    it.name == methodName &&
-                            it.parameterTypes.size == 1 &&
-                            it.parameterTypes[0] == ByteArray::class.java
-                }
-
-                if (methodCtx != null) {
-                    val inst = cls.getDeclaredConstructor().newInstance()
-                    methodCtx.invoke(inst, context, frame)
-                    log("🎉 Wysłano przez $clsName.$methodName(Context, ByteArray)")
-                    return SendResult(true, report.toString())
-                }
-                if (methodPlain != null) {
-                    val inst = cls.getDeclaredConstructor().newInstance()
-                    methodPlain.invoke(inst, frame)
-                    log("🎉 Wysłano przez $clsName.$methodName(ByteArray)")
-                    return SendResult(true, report.toString())
-                }
-
-                log("⚠ Nie znaleziono metody $methodName w $clsName")
-            }
-            log("❌ Nie znaleziono kompatybilnego API w AAR.")
-            return SendResult(false, report.toString())
+    fun isApiAvailable(): Boolean {
+        return try {
+            Class.forName(CLASS_MANAGER)
+            Class.forName(CLASS_GLYPH_FRAME_BUILDER)
+            Class.forName(CLASS_GLYPH_MATRIX_FRAME)
+            true
         } catch (t: Throwable) {
-            log("❌ Wyjątek: ${t.javaClass.name}: ${t.message}")
-            return SendResult(false, report.toString())
+            Log.w(TAG, "API not available: ${t.message}")
+            false
+        }
+    }
+
+    /**
+     * Wysyła prosty tekst na Glyphy (po stronie telefonu Nothing),
+     * korzystając z klas z AAR (reflection).
+     */
+    fun sendText(context: Context, text: String): Boolean {
+        return try {
+            // 1) Manager
+            val mgrClass = Class.forName(CLASS_MANAGER)
+
+            // Szukamy statycznego getInstance(Context) lub innej metody,
+            // która zwraca GlyphMatrixManager i przyjmuje Context.
+            val getInstance = mgrClass.methods.firstOrNull { m ->
+                m.name.contains("getInstance", ignoreCase = true) &&
+                        m.parameterTypes.size == 1 &&
+                        m.parameterTypes[0].name == Context::class.java.name &&
+                        m.returnType.name == CLASS_MANAGER
+            } ?: mgrClass.methods.firstOrNull { m ->
+                m.parameterTypes.size == 1 &&
+                        m.parameterTypes[0].name == Context::class.java.name &&
+                        m.returnType.name == CLASS_MANAGER
+            } ?: throw IllegalStateException("Nie znaleziono metody getInstance(Context) w GlyphMatrixManager")
+
+            val manager = getInstance.invoke(null, context)
+
+            // 2) Zdobądź builder klatki (bez parametrów)
+            val builderAny = run {
+                // preferowana nazwa:
+                val m = mgrClass.methods.firstOrNull { it.name.contains("getGlyphFrameBuilder", true) && it.parameterTypes.isEmpty() }
+                if (m != null) m.invoke(manager)
+                else {
+                    // fallback: dowolna publiczna metoda bez parametrów zwracająca …GlyphFrame$Builder
+                    val m2 = mgrClass.methods.firstOrNull {
+                        it.parameterTypes.isEmpty() && it.returnType.name == CLASS_GLYPH_FRAME_BUILDER
+                    } ?: throw IllegalStateException("Nie znaleziono buildera GlyphFrame\$Builder")
+                    m2.invoke(manager)
+                }
+            }
+
+            val builderClass = Class.forName(CLASS_GLYPH_FRAME_BUILDER)
+
+            // 3) Ustaw tekst (różne wersje SDK mają różne nazwy setterów — próbujemy kilka)
+            val setTextMethod = listOf(
+                "setGlyphMatrixText", // spotykana w SDK
+                "setText",            // fallback
+            ).firstNotNullOfOrNull { name ->
+                builderClass.methods.firstOrNull { m ->
+                    m.name == name && m.parameterTypes.size == 1 && m.parameterTypes[0] == String::class.java
+                }
+            } ?: builderClass.methods.firstOrNull { m ->
+                // ostateczny fallback: dowolna metoda przyjmująca String i zwracająca Builder
+                m.parameterTypes.size == 1 &&
+                        m.parameterTypes[0] == String::class.java &&
+                        m.returnType.name == CLASS_GLYPH_FRAME_BUILDER
+            } ?: throw IllegalStateException("Nie znaleziono settera tekstu w GlyphFrame.Builder")
+
+            setTextMethod.invoke(builderAny, text)
+
+            // 4) Zbuduj finalny obiekt ramki (build())
+            val buildMethod = builderClass.methods.firstOrNull { m ->
+                m.name == "build" && m.parameterTypes.isEmpty()
+            } ?: throw IllegalStateException("Nie znaleziono metody build() w GlyphFrame.Builder")
+
+            val frameAny = buildMethod.invoke(builderAny)
+
+            // 5) Wyślij na Glyphy — znajdź metodę managera, która przyjmuje GlyphMatrixFrame
+            val matrixFrameClass = Class.forName(CLASS_GLYPH_MATRIX_FRAME)
+            val sendMethod = mgrClass.methods.firstOrNull { m ->
+                m.parameterTypes.size == 1 && m.parameterTypes[0].name == CLASS_GLYPH_MATRIX_FRAME
+            } ?: throw IllegalStateException("Nie znaleziono metody wysyłającej GlyphMatrixFrame w GlyphMatrixManager")
+
+            val result = sendMethod.invoke(manager, frameAny)
+            // czasem metoda zwraca void, czasem boolean — traktujemy oba jako sukces
+            (result as? Boolean) ?: true
+        } catch (t: Throwable) {
+            Log.e(TAG, "sendText() failed", t)
+            false
         }
     }
 }
