@@ -1,33 +1,32 @@
 package com.example.wolfglyphbattery
 
 import android.content.Context
-import android.graphics.Canvas
-import android.graphics.Paint
 import android.util.AttributeSet
-import android.view.View
+import android.widget.FrameLayout
+import android.widget.TextView
 
+/**
+ * Prosty widok z info o statusie API i tekstem do wysłania.
+ * Jeśli masz już swój layout – możesz ten plik pominąć.
+ */
 class GlyphMatrixView @JvmOverloads constructor(
-    context: Context, attrs: AttributeSet? = null
-) : View(context, attrs) {
+    context: Context,
+    attrs: AttributeSet? = null
+) : FrameLayout(context, attrs) {
 
-    private val paintWhite = Paint().apply { color = 0xFFFFFFFF.toInt() }
-    private val paintBlack = Paint().apply { color = 0xFF000000.toInt() }
-
-    override fun onDraw(canvas: Canvas) {
-        super.onDraw(canvas)
-        val cell = (minOf(width, height) / 25f)
-        for (r in 0 until 25) {
-            for (c in 0 until 25) {
-                val p = if (WOLF[r][c] == 1) paintWhite else paintBlack
-                canvas.drawRect(
-                    c * cell, r * cell,
-                    (c + 1) * cell, (r + 1) * cell, p
-                )
-            }
-        }
+    private val status = TextView(context).apply {
+        textSize = 14f
     }
 
-    // skrócona macierz do rysowania (wykorzystujemy tę samą co w kontrolerze)
-    private val WOLF = GlyphMatrixController
-        .run { javaClass.getDeclaredField("WOLF_25x25").apply { isAccessible = true }.get(this) as Array<IntArray> }
+    init {
+        addView(status)
+    }
+
+    fun updateStatus() {
+        status.text = if (GlyphMatrixController.isApiAvailable()) {
+            "API Nothing: OK"
+        } else {
+            "API Nothing: BRAK"
+        }
+    }
 }
