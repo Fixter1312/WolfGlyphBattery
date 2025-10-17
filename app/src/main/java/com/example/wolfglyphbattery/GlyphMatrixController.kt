@@ -1,20 +1,19 @@
 package com.example.wolfglyphbattery
 
 import android.content.Context
-import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Color
-import android.os.Build
 import android.util.Log
 
 object GlyphMatrixController {
 
     private const val TAG = "GlyphSender"
 
-    // -------- WILK 25x25 --------
+    // ---- Wymiary matrycy ----
     private const val W = 25
     private const val H = 25
 
+    // ---- Wilk 25x25 (1=biały, 0=czarny) ----
     private val wolf: Array<IntArray> = arrayOf(
         intArrayOf(0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0),
         intArrayOf(0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,1,0,0,0,0,0,0,0,0),
@@ -43,6 +42,7 @@ object GlyphMatrixController {
         intArrayOf(0,0,0,0,0,0,0,0,0,1,0,0,1,1,1,0,0,0,0,0,0,0,0,0,0)
     )
 
+    /** Z macierzy tworzymy bajty 0..255 (jasność) */
     fun frameBytes(intensity: Int): ByteArray {
         val clamped = intensity.coerceIn(0, 255)
         val out = ByteArray(W * H)
@@ -53,6 +53,7 @@ object GlyphMatrixController {
         return out
     }
 
+    /** Podgląd bitmapy wilka w UI (powiększenie scale) */
     fun previewBitmap(scale: Int = 10): Bitmap {
         val bmp = Bitmap.createBitmap(W, H, Bitmap.Config.ARGB_8888)
         for (y in 0 until H) for (x in 0 until W) {
@@ -61,86 +62,47 @@ object GlyphMatrixController {
         return Bitmap.createScaledBitmap(bmp, W * scale, H * scale, false)
     }
 
-    // -------- WYSYŁKA DO GLYPH --------
+    // ---- Wysyłka do Nothing Glyph SDK (Twoje AAR: int[] bez width/height) ----
     fun sendToGlyph(context: Context, bytes25x25: ByteArray, width: Int = W, height: Int = H): Boolean {
-        // 1) Najbardziej prawdopodobne nazwy (różne wersje SDK)
-        val classCandidates = listOf(
-            // Ketchum (częste w Nothing OS 2/3)
-            "com.nothing.ketchum.GlyphMatrixManager",
-            "com.nothing.ketchum.KetchumManager",
-            "com.nothing.ketchum.GlyphManager",
-            // Glyph Matrix (inne paczki)
-            "com.nothing.glyph.matrix.GlyphMatrix",
-            "com.nothing.glyph.matrix.GlyphMatrixManager",
-            // Client/SDK aliasy
-            "com.nothing.ketchum.client.GlyphMatrixClient",
-            "com.nothing.ketchum.sdk.GlyphMatrix"
-        )
-
-        val methodCandidates = listOf(
-            "setAppMatrixFrame",
-            "setMatrixFrame",
-            "setMatrix",
-            "updateMatrixFrame",
-            "displayMatrix"
-        )
-
-        // 1a) Szukamy klasy/metody i wołamy refleksją
-        for (clsName in classCandidates) {
-            try {
-                val cls = Class.forName(clsName)
-                val obj = try { cls.getConstructor(Context::class.java).newInstance(context) }
-                          catch (_: Throwable) { null } // czasem są tylko metody statyczne
-
-                for (m in cls.methods) {
-                    if (m.name !in methodCandidates) continue
-                    val p = m.parameterTypes
-                    val ok = try {
-                        when (p.size) {
-                            3 -> { // (byte[], int, int)
-                                m.invoke(obj, bytes25x25, width, height)
-                                true
-                            }
-                            4 -> { // (byte[], int, int, int brightness)
-                                m.invoke(obj, bytes25x25, width, height, 255)
-                                true
-                            }
-                            else -> false
-                        }
-                    } catch (_: Throwable) { false }
-                    if (ok) {
-                        Log.i(TAG, "Used $clsName.${m.name}(${p.size} params)")
-                        return true
-                    }
-                }
-            } catch (_: Throwable) {
-                // brak klasy – próbujemy dalej
-            }
-        }
-
-        // 2) Fallback: Intent/broadcast (niektóre buildy Nothing wystawiają akcję systemową)
-        // Uwaga: jeśli nie istnieje, po prostu nic się nie stanie – bez crasha.
         try {
-            val actionCandidates = listOf(
-                "com.nothing.ketchum.action.SET_MATRIX",
-                "com.nothing.ketchum.ACTION_SET_MATRIX",
-                "com.nothing.glyph.matrix.ACTION_SET_MATRIX"
-            )
-            for (act in actionCandidates) {
-                val i = Intent(act).apply {
-                    putExtra("width", width)
-                    putExtra("height", height)
-                    putExtra("frame", bytes25x25)
-                    putExtra("brightness", 255)
-                    addFlags(Intent.FLAG_INCLUDE_STOPPED_PACKAGES)
-                }
-                context.sendBroadcast(i)
-                Log.i(TAG, "Sent broadcast: $act")
-                // Nie wiemy, czy ktoś obsłuży – ale to bezpieczny fallback
-            }
-        } catch (_: Throwable) { /* ignore */ }
+            // Klasa managera z AAR
+            val cls = Class.forName("com.nothing.ketchum.GlyphMatrixManager")
 
-        Log.w(TAG, "No matching API found.")
+            // Instancja: preferuj getInstance(Context), w razie czego konstruktor(Context)
+            val instance = try {
+                val getInst = cls.getMethod("getInstance", Context::class.java)
+                getInst.invoke(null, context)
+            } catch (_: Throwable) {
+                val ctor = cls.getConstructor(Context::class.java)
+                ctor.newInstance(context)
+            }
+
+            // Rejestracja aplikacji (jeśli metoda istnieje)
+            try {
+                val register = cls.getMethod("register", String::class.java)
+                register.invoke(instance, context.packageName)
+            } catch (_: Throwable) { /* brak = OK */ }
+
+            // Konwersja do int[] (SDK tego wymaga)
+            val ints = IntArray(width * height)
+            var i = 0
+            for (b in bytes25x25) ints[i++] = (b.toInt() and 0xFF)
+
+            // Próba wywołań: setAppMatrixFrame(int[]) → setMatrixFrame(int[])
+            fun tryCall(name: String): Boolean = try {
+                val m = cls.getMethod(name, IntArray::class.java)
+                m.invoke(instance, ints)
+                true
+            } catch (_: Throwable) { false }
+
+            if (tryCall("setAppMatrixFrame") || tryCall("setMatrixFrame")) {
+                Log.i(TAG, "Glyph OK: int[] via GlyphMatrixManager")
+                return true
+            }
+        } catch (t: Throwable) {
+            Log.w(TAG, "Glyph error: ${t.message}")
+        }
+        Log.w(TAG, "No matching API")
         return false
     }
 }
