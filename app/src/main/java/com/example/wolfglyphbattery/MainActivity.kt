@@ -1,57 +1,73 @@
 package com.example.wolfglyphbattery
 
-import android.app.AlertDialog
+import android.os.BatteryManager
 import android.os.Bundle
-import android.util.Log
-import android.widget.Button
+import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import com.example.wolfglyphbattery.databinding.ActivityMainBinding
 
 class MainActivity : AppCompatActivity() {
 
+    private lateinit var binding: ActivityMainBinding
     private lateinit var controller: GlyphMatrixController
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
+        binding = ActivityMainBinding.inflate(layoutInflater)
+        setContentView(binding.root)
 
         controller = GlyphMatrixController(this)
 
-        findViewById<Button>(R.id.sendButton).setOnClickListener {
-            // tu wstaw swój obraz jako 20x11 pikseli (220 bajtów) – poniżej przykładowy wzór
-            val bytes = DemoFrames.wolf220 // jeśli masz własne – podmień
-            val diag = controller.send(bytes)
-            showDiag(diag)
+        // prosty odczyt poziomu baterii do TextView (opcjonalnie)
+        updateBatteryLabel()
+
+        // ====== WŁAŚCIWY PRZYCISK Z LAYOUTU ======
+        binding.btnSendGlyph.setOnClickListener {
+            // 1) sprawdzenie dostępności API
+            val check = controller.isApiAvailable()
+            if (!check.ok) {
+                showDiag("Diagnoza API", check.lines)
+                return@setOnClickListener
+            }
+
+            // 2) zbuduj ramkę do wysłania (placeholder – możesz podmienić)
+            val frame = demoFrameBytes()
+
+            // 3) wyślij
+            val result = controller.send(frame)
+            if (result.ok) {
+                Toast.makeText(this, "Wysłano na Glyph", Toast.LENGTH_SHORT).show()
+            } else {
+                showDiag("Błąd wysyłania", result.lines)
+            }
+        }
+
+        // ====== DRUGI PRZYCISK Z LAYOUTU ======
+        binding.btnDiag.setOnClickListener {
+            val check = controller.isApiAvailable()
+            showDiag("Diagnoza API", check.lines)
         }
     }
 
-    private fun showDiag(diag: GlyphMatrixController.Diag) {
-        val title = if (diag.ok) "Diagnoza: OK" else "Diagnoza: BŁĄD"
-        val msg = buildString {
-            diag.lines.forEach { appendLine(it) }
-            diag.throwable?.let {
-                appendLine()
-                appendLine("Exception: ${it::class.java.name}")
-                appendLine(it.message ?: "")
-            }
-        }
-        Log.i("WolfGlyph/Diag", msg)
+    private fun updateBatteryLabel() {
+        val bm = getSystemService(BATTERY_SERVICE) as BatteryManager
+        val level = bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY)
+        binding.tvBattery.text = "Bateria: ${level}%"
+    }
+
+    private fun showDiag(title: String, lines: List<String>) {
         AlertDialog.Builder(this)
             .setTitle(title)
-            .setMessage(msg.trim())
+            .setMessage(lines.joinToString("\n"))
             .setPositiveButton("OK", null)
             .show()
     }
-}
 
-/**
- * Przykładowe dane 20x11 (Nothing Glyph 2.0 typowa macierz 20 kolumn x 11 wierszy).
- * Zamień na swoje bajty jeśli masz generator.
- */
-object DemoFrames {
-    // 220 bajtów – prosta szachownica jako placeholder
-    val wolf220: ByteArray = ByteArray(220) { i ->
-        val x = i % 20
-        val y = i / 20
-        if ((x + y) % 2 == 0) 1 else 0
-    }
+    /**
+     * Prosta testowa ramka 16x16 (256 bajtów) – na przemian 0/255.
+     * Jeśli Twoje AAR wymaga konkretnego rozmiaru, podmień na właściwy.
+     */
+    private fun demoFrameBytes(): ByteArray =
+        ByteArray(256) { i -> if (i % 2 == 0) 0xFF.toByte() else 0x00 }
 }
