@@ -4,10 +4,6 @@ import android.content.Context
 import android.util.AttributeSet
 import androidx.appcompat.widget.AppCompatImageView
 
-/**
- * Prosty widok pokazujący bitmapę wilka (podgląd).
- * Wystarczy umieścić w layout albo nadać mu bitmapę z kontrolera.
- */
 class GlyphMatrixView @JvmOverloads constructor(
     context: Context,
     attrs: AttributeSet? = null,
@@ -15,7 +11,6 @@ class GlyphMatrixView @JvmOverloads constructor(
 ) : AppCompatImageView(context, attrs, defStyleAttr) {
 
     init {
-        // Domyślnie pokaż podgląd wilka
         setImageBitmap(GlyphMatrixController.previewBitmap(scale = 10))
         adjustViewBounds = true
     }
