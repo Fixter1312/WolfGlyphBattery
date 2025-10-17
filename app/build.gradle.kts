@@ -13,21 +13,25 @@ android {
         targetSdk = 35
         versionCode = 1
         versionName = "1.0"
-
-        // żeby nie sypało błędem o launcherze – użyjemy systemowej ikony
         resourceConfigurations += listOf("en", "pl")
     }
 
     buildTypes {
-        release {
+        debug {
+            // minify OFF, ale podłączamy rules – to ważne dla reflection
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
         }
-        debug {
-            isMinifyEnabled = false
+        release {
+            // możesz włączyć minify w release, jak chcesz
+            isMinifyEnabled = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
         }
     }
 
@@ -44,11 +48,17 @@ android {
     }
 }
 
+repositories {
+    // NIE jest wymagane przy implementation(files(...)),
+    // ale zostawiamy – nie przeszkadza.
+    flatDir { dirs("libs") }
+}
+
 dependencies {
     implementation("androidx.core:core-ktx:1.13.1")
     implementation("androidx.appcompat:appcompat:1.7.0")
     implementation("com.google.android.material:material:1.12.0")
 
-    // Twój AAR (lokalny)
+    // AAR lokalnie z folderu app/libs/
     implementation(files("libs/glyph-matrix-sdk-1.0.aar"))
 }
