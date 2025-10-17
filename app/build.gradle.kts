@@ -9,7 +9,7 @@ android {
 
     defaultConfig {
         applicationId = "com.example.wolfglyphbattery"
-        minSdk = 26
+        minSdk = 34              // ⬅⬅⬅ BYŁO 26, MA BYĆ 34
         targetSdk = 34
         versionCode = 1
         versionName = "1.0"
@@ -48,6 +48,6 @@ dependencies {
     implementation("androidx.activity:activity-ktx:1.9.2")
     implementation("androidx.constraintlayout:constraintlayout:2.1.4")
 
-    // 🔽 lokalny AAR SDK Nothing – workflow doda go do app/libs
+    // Nothing Glyph Matrix SDK (pobrane do app/libs przez workflow)
     implementation(files("libs/glyph-matrix-sdk-1.0.aar"))
 }
