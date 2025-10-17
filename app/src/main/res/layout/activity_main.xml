@@ -10,25 +10,26 @@
         android:text="Bateria: --%"
         android:textSize="20sp"
         android:layout_width="wrap_content"
-        android:layout_height="wrap_content"/>
+        android:layout_height="wrap_content" />
 
     <ImageView
         android:id="@+id/ivWolf"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"/>
+        android:layout_marginTop="16dp"
+        android:layout_width="250dp"
+        android:layout_height="250dp"
+        android:background="#000000" />
 
     <Button
         android:id="@+id/btnSendGlyph"
-        android:text="Wyślij na Glyph"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="24dp"/>
+        android:layout_marginTop="24dp"
+        android:text="@string/send_to_glyph"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content" />
 
     <Button
         android:id="@+id/btnDiag"
-        android:text="Diagnoza (pokaż raport)"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"/>
+        android:layout_marginTop="12dp"
+        android:text="@string/diag"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content" />
 </LinearLayout>
