@@ -1,4 +1,5 @@
-<?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Wolf Glyph Battery</string>
+    <string name="app_name">WolfGlyphBattery</string>
+    <string name="send_to_glyph">Wyślij na Glyph</string>
+    <string name="diag">Diagnoza (pokaż raport)</string>
 </resources>
