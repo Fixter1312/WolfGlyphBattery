@@ -10,6 +10,8 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+        // lokalne AAR-y
+        flatDir { dirs("app/libs") }
     }
 }
 rootProject.name = "WolfGlyphBattery"
