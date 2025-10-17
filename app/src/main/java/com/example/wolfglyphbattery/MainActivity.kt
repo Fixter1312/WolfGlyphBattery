@@ -1,5 +1,6 @@
 package com.example.wolfglyphbattery
 
+import android.content.Context          // << DODANY IMPORT
 import android.os.BatteryManager
 import android.os.Bundle
 import android.widget.Button
@@ -20,18 +21,14 @@ class MainActivity : AppCompatActivity() {
         val btn = findViewById<Button>(R.id.btnSendGlyph)
         val btnDiag = findViewById<Button>(R.id.btnDiag)
 
-        val percent = readBatteryPercent()
+        val percent = readBatteryPercent(this)   // << PRZEKAZUJEMY Context
         tvBattery.text = "Bateria: $percent%"
 
         ivWolf.setImageBitmap(GlyphMatrixController.previewBitmap(scale = 10))
 
         btn.setOnClickListener {
             val intensity = ((percent / 100f) * 255).toInt().coerceIn(0, 255)
-            val frame = ByteArray(25 * 25) { idx ->
-                if (idx < 625) {
-                    if (frameWolfOn(idx)) intensity.toByte() else 0
-                } else 0
-            }
+            val frame = GlyphMatrixController.frameBytes(intensity)
             val (ok, report) = GlyphMatrixController.sendToGlyphWithReport(this, frame)
             btn.text = if (ok) "Wysłano ✅" else "Nie znaleziono API ❗"
             if (!ok) showReport(report)
@@ -57,40 +54,6 @@ class MainActivity : AppCompatActivity() {
             .setView(sc)
             .setPositiveButton("OK", null)
             .show()
-    }
-
-    private fun frameWolfOn(idx: Int): Boolean {
-        val y = idx / 25
-        val x = idx % 25
-        // powielamy logikę: 1=biały, 0=czarny
-        val data = arrayOf(
-            intArrayOf(0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0),
-            intArrayOf(0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,1,0,0,0,0,0,0,0,0),
-            intArrayOf(0,0,0,0,0,0,0,0,0,0,1,0,1,0,0,1,1,0,0,0,0,0,0,0,0),
-            intArrayOf(0,0,0,0,0,0,0,0,0,0,1,0,1,1,1,0,1,0,0,0,0,0,0,0,0),
-            intArrayOf(0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,0,0,0,0,0,0,0,0,0),
-            intArrayOf(0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0),
-            intArrayOf(0,0,0,0,0,0,0,0,0,1,1,1,1,0,0,1,1,0,0,0,0,0,0,0,0),
-            intArrayOf(0,0,0,0,0,0,0,0,1,0,1,1,1,1,1,0,1,1,0,0,0,0,0,0,0),
-            intArrayOf(0,0,0,0,0,0,0,1,1,0,1,1,0,0,1,1,1,1,1,0,0,0,0,0,0),
-            intArrayOf(0,0,0,0,0,0,0,0,1,1,0,1,1,0,0,0,1,1,0,0,0,0,0,0,0),
-            intArrayOf(0,0,0,0,0,0,0,1,1,1,0,0,1,0,0,1,0,0,0,0,0,0,0,0,0),
-            intArrayOf(0,0,0,0,0,0,1,1,1,1,1,0,0,0,0,1,1,0,0,0,0,0,0,0,0),
-            intArrayOf(0,0,0,0,0,1,1,1,0,1,1,1,0,0,0,0,1,0,0,0,0,0,0,0,0),
-            intArrayOf(0,0,0,0,1,1,1,0,0,0,1,1,1,0,0,0,1,0,0,0,0,0,0,0,0),
-            intArrayOf(0,0,0,0,1,1,0,0,0,0,0,1,1,0,0,1,1,0,0,0,0,0,0,0,0),
-            intArrayOf(0,0,0,1,1,0,0,0,1,0,0,0,1,0,1,1,0,0,0,0,0,0,0,0,0),
-            intArrayOf(0,0,0,1,0,0,0,0,1,0,0,0,0,1,1,0,0,0,0,0,0,0,0,0,0),
-            intArrayOf(0,0,1,1,0,1,1,0,0,1,0,0,1,1,0,1,0,0,0,0,0,0,0,0,0),
-            intArrayOf(0,0,1,0,0,0,0,1,0,1,0,0,1,0,0,1,0,0,0,0,0,0,0,0,0),
-            intArrayOf(0,0,1,0,0,0,0,1,0,0,1,0,1,0,1,1,0,0,0,0,0,0,0,0,0),
-            intArrayOf(0,0,0,0,0,0,0,1,0,0,1,0,1,0,1,1,0,0,0,0,0,0,0,0,0),
-            intArrayOf(0,0,0,0,0,0,1,1,0,0,1,0,1,0,0,1,0,0,0,0,0,0,0,0,0),
-            intArrayOf(0,0,0,0,0,1,1,0,0,0,1,0,1,0,0,1,0,0,0,0,0,0,0,0,0),
-            intArrayOf(0,0,0,0,0,0,0,1,1,0,0,0,1,1,0,0,1,0,0,0,0,0,0,0,0),
-            intArrayOf(0,0,0,0,0,0,0,0,0,1,0,0,1,1,1,0,0,0,0,0,0,0,0,0,0)
-        )
-        return data[y][x] == 1
     }
 
     private fun readBatteryPercent(context: Context): Int {
