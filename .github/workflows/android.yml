@@ -1,0 +1,44 @@
+name: Android CI
+
+on:
+  push:
+    branches: [ "**" ]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+
+- name: Fetch Nothing Glyph Matrix SDK (AAR)
+  run: |
+    mkdir -p app/libs
+    curl -L https://raw.githubusercontent.com/Nothing-Developer-Programme/GlyphMatrix-Development-Kit/main/glyph-matrix-sdk-1.0.aar -o app/libs/glyph-matrix-sdk-1.0.aar
+    ls -la app/libs
+
+      - name: Cache Gradle
+        uses: gradle/gradle-build-action@v3
+        with:
+          gradle-version: 8.7
+
+      - name: Build Debug APK
+        run: |
+          ./gradlew assembleDebug || gradle assembleDebug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: wolf-apk
+          path: app/build/outputs/apk/debug/*.apk
