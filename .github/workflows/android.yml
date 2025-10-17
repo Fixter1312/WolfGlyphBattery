@@ -2,13 +2,12 @@ name: Android CI
 
 on:
   push:
-    branches: [ "**" ]
+    branches: ["**"]
   pull_request:
 
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -25,7 +24,6 @@ jobs:
       - name: Accept Android SDK licenses
         run: yes | sdkmanager --licenses
 
-      # 🔽 Jeżeli nie masz gradle wrappera w repo, wygeneruj go:
       - name: Generate Gradle Wrapper (if missing)
         run: |
           if [ ! -f gradlew ]; then
@@ -34,19 +32,17 @@ jobs:
           fi
           chmod +x gradlew
 
-      # 🔽 Pobierz AAR do app/libs – dzięki temu nie musisz trzymać binarki w repo
       - name: Fetch Nothing Glyph Matrix SDK (AAR)
         run: |
           mkdir -p app/libs
           curl -L https://raw.githubusercontent.com/Nothing-Developer-Programme/GlyphMatrix-Development-Kit/main/glyph-matrix-sdk-1.0.aar -o app/libs/glyph-matrix-sdk-1.0.aar
           ls -la app/libs
 
-      # (Opcjonalnie) cache gradle, z wrapperem działa najlepiej:
       - name: Cache Gradle
         uses: gradle/gradle-build-action@v3
 
       - name: Assemble Debug
-        run: ./gradlew assembleDebug --no-daemon
+        run: ./gradlew assembleDebug --no-daemon --stacktrace
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
@@ -54,7 +50,6 @@ jobs:
           name: wolf-apk
           path: app/build/outputs/apk/debug/*.apk
 
-      # (Pomoc w diagnozie) wrzuć logi builda, jeśli coś padnie
       - name: Upload build logs on failure
         if: failure()
         uses: actions/upload-artifact@v4
