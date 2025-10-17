@@ -8,6 +8,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -21,24 +22,42 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
+      - name: Accept Android SDK licenses
+        run: yes | sdkmanager --licenses
 
-- name: Fetch Nothing Glyph Matrix SDK (AAR)
-  run: |
-    mkdir -p app/libs
-    curl -L https://raw.githubusercontent.com/Nothing-Developer-Programme/GlyphMatrix-Development-Kit/main/glyph-matrix-sdk-1.0.aar -o app/libs/glyph-matrix-sdk-1.0.aar
-    ls -la app/libs
+      # 🔽 Jeżeli nie masz gradle wrappera w repo, wygeneruj go:
+      - name: Generate Gradle Wrapper (if missing)
+        run: |
+          if [ ! -f gradlew ]; then
+            sudo apt-get update && sudo apt-get install -y gradle
+            gradle wrapper --gradle-version 8.7
+          fi
+          chmod +x gradlew
 
+      # 🔽 Pobierz AAR do app/libs – dzięki temu nie musisz trzymać binarki w repo
+      - name: Fetch Nothing Glyph Matrix SDK (AAR)
+        run: |
+          mkdir -p app/libs
+          curl -L https://raw.githubusercontent.com/Nothing-Developer-Programme/GlyphMatrix-Development-Kit/main/glyph-matrix-sdk-1.0.aar -o app/libs/glyph-matrix-sdk-1.0.aar
+          ls -la app/libs
+
+      # (Opcjonalnie) cache gradle, z wrapperem działa najlepiej:
       - name: Cache Gradle
         uses: gradle/gradle-build-action@v3
-        with:
-          gradle-version: 8.7
 
-      - name: Build Debug APK
-        run: |
-          ./gradlew assembleDebug || gradle assembleDebug
+      - name: Assemble Debug
+        run: ./gradlew assembleDebug --no-daemon
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: wolf-apk
           path: app/build/outputs/apk/debug/*.apk
+
+      # (Pomoc w diagnozie) wrzuć logi builda, jeśli coś padnie
+      - name: Upload build logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gradle-logs
+          path: '**/*.log'
