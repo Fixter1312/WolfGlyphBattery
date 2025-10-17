@@ -24,7 +24,6 @@ class MainActivity : AppCompatActivity() {
         val percent = readBatteryPercent(this)
         tvBattery.text = "Bateria: $percent%"
 
-        // Podgląd 25x25 na ekranie
         ivWolf.setImageBitmap(GlyphMatrixController.previewBitmap(scale = 10))
 
         btn.setOnClickListener {
