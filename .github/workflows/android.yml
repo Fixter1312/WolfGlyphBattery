@@ -8,6 +8,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -24,7 +25,7 @@ jobs:
       - name: Accept Android SDK licenses
         run: yes | sdkmanager --licenses
 
-      # ⬇️ ZAWSZE generujemy wrapper 8.7 (nawet jeśli był jakiś pseudo-wrapper)
+      # ZAWSZE wymuś wrapper 8.7 (kompatybilny z AGP 8.5.x)
       - name: Force Gradle Wrapper 8.7
         run: |
           sudo apt-get update && sudo apt-get install -y gradle
@@ -32,20 +33,33 @@ jobs:
           gradle wrapper --gradle-version 8.7 --distribution-type all
           chmod +x gradlew
 
-      # ⬇️ Pobierz AAR Nothing do app/libs (nie trzeba trzymać w repo)
+      # Pobierz Nothing Glyph Matrix SDK do app/libs
       - name: Fetch Nothing Glyph Matrix SDK (AAR)
         run: |
           mkdir -p app/libs
           curl -L https://raw.githubusercontent.com/Nothing-Developer-Programme/GlyphMatrix-Development-Kit/main/glyph-matrix-sdk-1.0.aar -o app/libs/glyph-matrix-sdk-1.0.aar
           ls -la app/libs
 
+      # Cache Gradle (przed buildem)
       - name: Cache Gradle
         uses: gradle/gradle-build-action@v3
+
+      # Diagnostyka zasobów – sprawdź czy są ikony itp.
+      - name: Show res tree
+        run: |
+          echo "== res tree ==" && ls -la app/src/main/res || true
+          echo "== mipmap =="  && ls -la app/src/main/res/mipmap || true
+          echo "== drawable ==" && ls -la app/src/main/res/drawable || true
+          echo "== values ==" && ls -la app/src/main/res/values || true
+
+      - name: Clean
+        run: ./gradlew clean --no-daemon
 
       - name: Assemble Debug
         run: ./gradlew assembleDebug --no-daemon --stacktrace
 
       - name: Upload APK
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: wolf-apk
