@@ -42,14 +42,12 @@ android {
 }
 
 dependencies {
-    implementation(files("libs/glyph-matrix-sdk-1.0.aar"))
     implementation("androidx.core:core-ktx:1.13.1")
     implementation("androidx.appcompat:appcompat:1.7.0")
     implementation("com.google.android.material:material:1.12.0")
     implementation("androidx.activity:activity-ktx:1.9.2")
     implementation("androidx.constraintlayout:constraintlayout:2.1.4")
-}
 
-repositories {
-    flatDir { dirs("libs") }
+    // 🔽 lokalny AAR SDK Nothing – workflow doda go do app/libs
+    implementation(files("libs/glyph-matrix-sdk-1.0.aar"))
 }
