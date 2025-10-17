@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@android:color/black">
+
+    <com.example.wolfglyphbattery.GlyphMatrixView
+        android:id="@+id/glyphView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_gravity="center"/>
+
+    <TextView
+        android:id="@+id/percentLabel"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textStyle="bold"
+        android:textColor="@android:color/white"
+        android:textSize="28sp"
+        android:layout_gravity="center"
+        android:shadowColor="#AA000000"
+        android:shadowDx="0"
+        android:shadowDy="0"
+        android:shadowRadius="6"/>
+</FrameLayout>
