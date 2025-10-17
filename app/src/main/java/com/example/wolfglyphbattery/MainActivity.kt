@@ -20,10 +20,8 @@ class MainActivity : AppCompatActivity() {
         val percent = readBatteryPercent()
         tvBattery.text = "Bateria: $percent%"
 
-        // Podgląd wilka w UI
         ivWolf.setImageBitmap(GlyphMatrixController.previewBitmap(scale = 10))
 
-        // Wysyłka na Glyph – jasność = % baterii
         btn.setOnClickListener {
             val intensity = ((percent / 100f) * 255).toInt().coerceIn(0, 255)
             val frame = GlyphMatrixController.frameBytes(intensity)
