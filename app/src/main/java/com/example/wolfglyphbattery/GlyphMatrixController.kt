@@ -6,13 +6,15 @@ import android.widget.Toast
 import java.lang.reflect.Method
 
 /**
- * Prosty wrapper do AAR przez refleksję + diagnostyka.
+ * Wysyłka do Nothing Glyphs wykonana w 100% refleksją pod AAR,
+ * który zawiera klasy z pakietu com.nothing.ketchum.*:
  *
- * Oczekiwane klasy:
- *  - com.nothing.ketchum.GlyphMatrixApi   (nowsze API)
- *  - com.nothing.ketchum.GlyphMatrix
- *  - com.nothing.api.glyph.GlyphMatrixApi (starsze nazwy – fallback)
- *  - com.nothing.api.glyph.GlyphMatrix
+ *  - GlyphMatrixManager (API menedżer)
+ *  - GlyphMatrixObject  (model danych) + Builder
+ *
+ * Kod sam wykrywa dostępne metody (from(byte[]), konstruktory,
+ * Builder#set…(byte[]), build(), a potem w managerze metody
+ * typu send/show/display/set/update(*GlyphMatrixObject*)).
  */
 class GlyphMatrixController(private val context: Context) {
 
@@ -22,155 +24,111 @@ class GlyphMatrixController(private val context: Context) {
         val throwable: Throwable? = null
     )
 
-    /** Szybkie sprawdzenie dostępności API – ZAMIENIA isAppAvalible/isAppAvailable */
-    fun isApiAvailable(): Diag {
-        val lines = mutableListOf<String>()
-
-        fun add(ok: Boolean, msg: String) {
-            lines += (if (ok) "✓ " else "✗ ") + msg
-        }
-
-        return try {
-            // Spróbuj klas API (nowa -> stara nazwa)
-            val apiClass = runCatching {
-                Class.forName("com.nothing.ketchum.GlyphMatrixApi")
-            }.getOrElse {
-                runCatching {
-                    Class.forName("com.nothing.api.glyph.GlyphMatrixApi")
-                }.getOrNull()
-            } ?: run {
-                add(false, "Brak klasy GlyphMatrixApi (ketchum/api.glyph)")
-                return Diag(false, lines)
-            }
-            add(true, "Znaleziono ${apiClass.name}")
-
-            // Spróbuj klas modelu
-            val matrixClass = runCatching {
-                Class.forName("com.nothing.ketchum.GlyphMatrix")
-            }.getOrElse {
-                runCatching {
-                    Class.forName("com.nothing.api.glyph.GlyphMatrix")
-                }.getOrNull()
-            } ?: run {
-                add(false, "Brak klasy GlyphMatrix")
-                return Diag(false, lines)
-            }
-            add(true, "Znaleziono ${matrixClass.name}")
-
-            // Sprawdź czy API ma konstruktor (Context)
-            val apiCtor = apiClass.constructors.firstOrNull { ctor ->
-                val p = ctor.parameterTypes
-                p.size == 1 && Context::class.java.isAssignableFrom(p[0])
-            } ?: run {
-                add(false, "Brak konstruktora ${apiClass.simpleName}(Context)")
-                return Diag(false, lines)
-            }
-            add(true, "Konstruktor ${apiClass.simpleName}(Context) OK")
-
-            // Sprawdź czy jest metoda show/send/display(GlyphMatrix)
-            val send = listOf("show", "send", "display")
-                .firstNotNullOfOrNull { m ->
-                    runCatching { apiClass.getMethod(m, matrixClass) }.getOrNull()
-                } ?: run {
-                    add(false, "Brak metody show/send/display(GlyphMatrix)")
-                    return Diag(false, lines)
-                }
-            add(true, "Znaleziono metodę ${send.name}(GlyphMatrix)")
-
-            Diag(true, lines)
-        } catch (t: Throwable) {
-            lines += "✗ Wyjątek: ${t::class.java.simpleName}: ${t.message}"
-            Diag(false, lines, t)
-        }
-    }
-
-    /** Wysyła ramkę na Glyph – używa tych samych odbić co powyżej. */
     fun send(bytes: ByteArray): Diag {
         val tag = "WolfGlyph/Send"
         val lines = mutableListOf<String>()
-
-        fun add(ok: Boolean, msg: String) {
-            lines += (if (ok) "✓ " else "✗ ") + msg
-        }
+        fun add(ok: Boolean, msg: String) { lines += (if (ok) "✓ " else "✗ ") + msg }
 
         try {
-            // 1) znajdź klasę API (nowa lub stara nazwa)
-            val apiClass = runCatching {
-                Class.forName("com.nothing.ketchum.GlyphMatrixApi")
-            }.getOrElse {
-                runCatching {
-                    Class.forName("com.nothing.api.glyph.GlyphMatrixApi")
-                }.getOrNull()
-            } ?: run {
-                add(false, "Nie znaleziono klasy GlyphMatrixApi (ani com.nothing.ketchum.*, ani com.nothing.api.glyph.*)")
+            // 1) Znajdź klasy w Twoim AAR
+            val managerClass = runCatching {
+                Class.forName("com.nothing.ketchum.GlyphMatrixManager")
+            }.getOrNull() ?: run {
+                add(false, "Brak klasy: com.nothing.ketchum.GlyphMatrixManager")
                 return Diag(false, lines)
             }
-            add(true, "Znaleziono ${apiClass.name}")
+            add(true, "Znaleziono ${managerClass.name}")
 
-            // 2) znajdź klasę modelu
-            val matrixClass = runCatching {
-                Class.forName("com.nothing.ketchum.GlyphMatrix")
-            }.getOrElse {
-                runCatching {
-                    Class.forName("com.nothing.api.glyph.GlyphMatrix")
-                }.getOrNull()
-            } ?: run {
-                add(false, "Nie znaleziono klasy GlyphMatrix")
+            val objClass = runCatching {
+                Class.forName("com.nothing.ketchum.GlyphMatrixObject")
+            }.getOrNull() ?: run {
+                add(false, "Brak klasy: com.nothing.ketchum.GlyphMatrixObject")
                 return Diag(false, lines)
             }
-            add(true, "Znaleziono ${matrixClass.name}")
+            add(true, "Znaleziono ${objClass.name}")
 
-            // 3) utwórz instancję API (konstruktor z Context)
-            val apiCtor = apiClass.constructors.firstOrNull { ctor ->
+            // 2) Utwórz instancję managera (szukamy konstruktora z Context)
+            val managerCtor = managerClass.constructors.firstOrNull { ctor ->
                 val p = ctor.parameterTypes
-                p.size == 1 && Context::class.java.isAssignableFrom(p[0])
+                p.size == 1 && android.content.Context::class.java.isAssignableFrom(p[0])
             } ?: run {
-                add(false, "Brak konstruktora ${apiClass.simpleName}(Context)")
+                add(false, "Brak konstruktora ${managerClass.simpleName}(Context)")
                 return Diag(false, lines)
             }
-            val api = apiCtor.newInstance(context)
-            add(true, "Utworzono ${apiClass.simpleName}")
+            val manager = managerCtor.newInstance(context)
+            add(true, "Utworzono ${managerClass.simpleName}")
 
-            // 4) utwórz obiekt GlyphMatrix z tablicy bajtów
-            val fromMethod: Method? = runCatching {
-                matrixClass.getMethod("from", ByteArray::class.java)
-            }.getOrNull()
+            // 3) Zbuduj GlyphMatrixObject z byte[]
+            val matrixObj: Any = run {
+                // a) statyczne factory: from(byte[])
+                val fromMethod: Method? = runCatching {
+                    objClass.getMethod("from", ByteArray::class.java)
+                }.getOrNull()
 
-            val matrixObj: Any = if (fromMethod != null) {
-                fromMethod.invoke(null, bytes).also {
-                    add(true, "Zbudowano przez ${matrixClass.simpleName}.from(byte[])")
-                }
-            } else {
-                val ctor = matrixClass.constructors.firstOrNull { ctor ->
-                    val p = ctor.parameterTypes
-                    p.size == 1 && p[0] == ByteArray::class.java
-                } ?: run {
-                    add(false, "Brak factory 'from(byte[])' ani konstruktora (byte[]) w ${matrixClass.simpleName}")
-                    return Diag(false, lines)
-                }
-                ctor.newInstance(bytes).also {
-                    add(true, "Zbudowano przez konstruktor (byte[])")
-                }
+                if (fromMethod != null) {
+                    add(true, "Używam ${objClass.simpleName}.from(byte[])")
+                    fromMethod.invoke(null, bytes)
+                } else {
+                    // b) konstruktor (byte[])
+                    val byteCtor = objClass.constructors.firstOrNull { ctor ->
+                        val p = ctor.parameterTypes
+                        p.size == 1 && p[0] == ByteArray::class.java
+                    }
+                    if (byteCtor != null) {
+                        add(true, "Używam konstruktora ${objClass.simpleName}(byte[])")
+                        byteCtor.newInstance(bytes)
+                    } else {
+                        // c) Builder: GlyphMatrixObject$Builder
+                        val builderClass = runCatching {
+                            Class.forName("${objClass.name}\$Builder")
+                        }.getOrNull() ?: run {
+                            add(false, "Brak factory/konstruktora i Buildera dla ${objClass.simpleName}")
+                            return@run null
+                        }
+                        val builder = builderClass.getDeclaredConstructor().newInstance()
+                        // Szukamy dowolnego settera, który przyjmuje byte[]
+                        val setter = builderClass.methods.firstOrNull { m ->
+                            m.parameterTypes.size == 1 && m.parameterTypes[0] == ByteArray::class.java
+                        } ?: run {
+                            add(false, "Builder nie ma metody przyjmującej byte[]")
+                            return@run null
+                        }
+                        setter.invoke(builder, bytes)
+                        val build = runCatching { builderClass.getMethod("build") }.getOrNull()
+                            ?: run {
+                                add(false, "Builder nie ma metody build()")
+                                return@run null
+                            }
+                        add(true, "Zbudowano przez ${builderClass.simpleName}.${setter.name}(byte[])->build()")
+                        build.invoke(builder)
+                    }
+                } ?: return Diag(false, lines)
             }
 
-            // 5) wyślij
-            val apiMethods = listOf("show", "send", "display")
-            val sendMethod = apiMethods
-                .firstNotNullOfOrNull { m ->
-                    runCatching { apiClass.getMethod(m, matrixClass) }.getOrNull()
+            // 4) Wyślij – znajdź metodę w managerze przyjmującą GlyphMatrixObject
+            val candidateNames = listOf("send", "show", "display", "set", "update", "play")
+            val sendMethod = candidateNames
+                .firstNotNullOfOrNull { name ->
+                    runCatching { managerClass.getMethod(name, objClass) }.getOrNull()
                 } ?: run {
-                    add(false, "Nie znaleziono metody show/send/display(GlyphMatrix)")
-                    return Diag(false, lines)
+                    // Gdy brak „ładnie nazwanych” metod – bierzemy dowolną publiczną,
+                    // która przyjmuje dokładnie jeden argument typu GlyphMatrixObject
+                    managerClass.methods.firstOrNull { m ->
+                        m.parameterTypes.size == 1 && m.parameterTypes[0] == objClass
+                    } ?: run {
+                        add(false, "Nie znalazłem metody *(GlyphMatrixObject) w ${managerClass.simpleName}")
+                        return Diag(false, lines)
+                    }
                 }
 
-            sendMethod.invoke(api, matrixObj)
-            add(true, "Wywołano ${apiClass.simpleName}.${sendMethod.name}(GlyphMatrix)")
+            sendMethod.invoke(manager, matrixObj)
+            add(true, "Wywołano ${managerClass.simpleName}.${sendMethod.name}(${objClass.simpleName})")
 
-            Log.i(tag, lines.joinToString("  |  "))
+            Log.i(tag, lines.joinToString(" | "))
             return Diag(true, lines)
         } catch (t: Throwable) {
-            Log.e(tag, "Błąd wysyłania", t)
             add(false, "Wyjątek: ${t::class.java.simpleName}: ${t.message}")
+            Log.e("WolfGlyph/Send", "Błąd wysyłania", t)
             Toast.makeText(context, "Błąd: ${t::class.java.simpleName}", Toast.LENGTH_SHORT).show()
             return Diag(false, lines, t)
         }
