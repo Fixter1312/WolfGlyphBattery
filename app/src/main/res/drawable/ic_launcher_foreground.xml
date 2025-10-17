@@ -4,7 +4,6 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <!-- Prosty „W” jak Wolf -->
     <path
         android:fillColor="#FFFFFFFF"
         android:pathData="M20,85 L32,23 L43,65 L54,23 L66,85 L57,85 L50,50 L43,85 Z"/>
