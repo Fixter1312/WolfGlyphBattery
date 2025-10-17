@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- 🔽 wymagane przez Glyph Matrix SDK / Phone 3 -->
+    <!-- Wymagane przez Glyph Matrix w Nothing OS -->
     <uses-permission android:name="com.nothing.ketchum.permission.ENABLE"/>
 
     <application
